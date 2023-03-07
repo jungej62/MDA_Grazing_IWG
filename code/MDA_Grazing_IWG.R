@@ -3,7 +3,7 @@ library(nlme);library(multcomp);library(emmeans);library(multcompView)
 library(ggplot2); library(lattice); library(reshape2)
 library(Rmisc)
 #Read data ----
-setwd("..")
+#A change.
 dat<-read.csv("data/MDA_Grazing_IWG.csv")
 str(dat)
 names(dat)
