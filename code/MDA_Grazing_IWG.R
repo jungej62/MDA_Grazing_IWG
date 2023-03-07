@@ -1,30 +1,45 @@
 #Packages ----
 library(nlme);library(multcomp);library(emmeans);library(multcompView)
 library(ggplot2); library(lattice); library(reshape2)
-library(Rmisc)
+library(Rmisc); library(tidyverse); 
+library(stringr)
 #Read data ----
-#A change.
 dat<-read.csv("data/MDA_Grazing_IWG.csv")
 str(dat)
 names(dat)
-dat$Season2<-factor(dat$Season, levels=c("Fall 2019", "Spring 2020","Summer 2020",  "Fall 2020", "Spring 2021"))
-
-
+dat$season2<-factor(dat$season, levels=c("Fall 2019", "Spring 2020","Summer 2020",  "Fall 2020", "Spring 2021",
+                                         "Summer 2021", "Fall 2021", "Spring 2022", "Summer 2022", "Fall 2022"))
+dat$plot<-as.factor(dat$plot)
+dat$paddock<-as.factor(dat$paddock)
+dat$stand_age<-as.numeric(unlist(str_extract_all(dat$season,"[[:digit:]]{4}$")))-2018
+dat$fstand_age<-as.factor(dat$stand_age)
+dat$season3<-str_split_i(dat$season, " ", 1)
+dat$season3<-factor(dat$season3, levels=c("Spring", "Summer", "Fall"))
 #Forage yield ----
-tbl1<-summarySE(dat, "Pregraze_tons_acre", c("Season2", "Biomass", "Trt", "Farm"), na.rm=T)
-library(ggplot2)
-library(clipr)
-write_clip(tbl1)
-ggplot(subset(tbl1, Biomass=="Forage"), aes(y=Pregraze_tons_acre, x=Season2, fill=Trt))+
-  facet_grid(~Farm)+
-  geom_bar(position=position_dodge(.9), stat="identity") +
-  geom_errorbar(aes(ymax=Pregraze_tons_acre+se, ymin=Pregraze_tons_acre-se), 
+#The old way
+tbl1<-summarySE(dat, "pregraze_tons_acre", c("season2", "biomass", "trt", "farm"), na.rm=T)
+#The new way
+tbl1<- dat %>% 
+  filter(!is.na(pregraze_tons_acre), farm=="Anderson", trt=="Grazed", biomass!="Grain") %>% 
+  group_by(fstand_age, season3, biomass, trt, farm) %>% 
+  summarise(m_yld = mean(pregraze_tons_acre, na.rm=T), 
+            sd_yld = sd(pregraze_tons_acre, na.rm=T), 
+            n_yld = n()) %>% 
+  mutate(se_yld=sd_yld/sqrt(n_yld))
+
+ggplot(tbl1, aes(y=m_yld, x=interaction(season3,fstand_age), fill=season3))+
+  #facet_grid(~fstand_age)+
+  geom_col(position="dodge")+
+  #geom_bar(position=position_dodge(.9), stat="identity", width=.75) +
+  geom_errorbar(aes(ymax=m_yld+se_yld, ymin=m_yld-se_yld), 
                 width=0.5, position=position_dodge(.9))+
   ylab(expression("Forage yield " ~ (Tons ~ acre^{-1})))+
-  #xlim(c(1:6))+
-  scale_fill_manual(values=c("peachpuff3","lemonchiffon3"),
-                    name="Entry")+
-  ggtitle("Kernza forage yield measured in spring and fall")+
+  geom_vline(xintercept=c(1.5, 4.5, 7.5))+
+  geom_text(label="Year 1", x=1, y=2.6)+
+  geom_text(label="Year 2", x=3, y=2.6)+
+  geom_text(label="Year 3", x=6, y=2.6)+
+  geom_text(label="Year 4", x=8.5, y=2.6)+
+  ggtitle("Kernza forage yield measured in spring, summer, and fall")+
   theme(panel.grid.major=element_blank(),
         panel.grid.minor=element_blank(),
         panel.background=element_rect(color="black", fill="white"),
@@ -32,13 +47,13 @@ ggplot(subset(tbl1, Biomass=="Forage"), aes(y=Pregraze_tons_acre, x=Season2, fil
         axis.line = element_line(color='black'),
         #legend.title.align = "top",
         legend.title=element_blank(),
-        legend.position = c(.6, .8),
+        legend.position = c(.9, .8),
         #axis.title.x=element_text(size=12, color='black'),
         axis.title.x=element_blank(),
-        #axis.text.x=element_blank(),
+        axis.text.x=element_text(size=12, color='black'),
         axis.title.y = element_text(size=12, color='black'),
         axis.text.y=element_text(size=12, color='black'))
-ggsave("ForageYld.png", width=9, height=5, units="in", path="/Volumes/GoogleDrive/My Drive/Intermediate_wheatgrass_research/Grazing_Experiments/On-Farm Trials/2020-KrausReport (Anderson and Honken)/MDA_Grazing_Analysis/")
+ggsave("ForageYld.png", width=9, height=5, units="in", path="figures/")
 
 mod1<-lme(Pregraze_tons_acre~Season2*Trt, random=~1|Paddock, data=subset(dat, Biomass=="Forage"&Farm=="Anderson"), na.action=na.omit)
 anova(mod1)
@@ -46,18 +61,27 @@ library(emmeans)
 cld(emmeans(mod1, ~Trt|Season2)) #significantly different at Anderson in Spring 2021, grazing reduced spring forage
 
 #Forage quality ----
-tbl2<-summarySE(dat, "RFV.pregraze", c("Season2", "Biomass", "Trt", "Farm"), na.rm=T)
-write_clip(tbl2)
-ggplot(subset(tbl2, Biomass=="Forage"), aes(y=RFV.pregraze, x=Season2, fill=Trt))+
-  facet_grid(~Farm)+
-  geom_bar(position=position_dodge(.9), stat="identity") +
-  geom_errorbar(aes(ymax=RFV.pregraze+se, ymin=RFV.pregraze-se), 
+tbl2<- dat %>% 
+  filter(!is.na(pregraze_tons_acre), farm=="Anderson", trt=="Grazed", biomass!="Grain") %>% 
+  group_by(fstand_age, season3, biomass, trt, farm) %>% 
+  summarise(m_yld = mean(RFV, na.rm=T), 
+            sd_yld = sd(RFV, na.rm=T), 
+            n_yld = n()) %>% 
+  mutate(se_yld=sd_yld/sqrt(n_yld))
+
+ggplot(tbl2, aes(y=m_yld, x=interaction(season3,fstand_age), fill=season3))+
+  #facet_grid(~fstand_age)+
+  geom_col(position="dodge")+
+  #geom_bar(position=position_dodge(.9), stat="identity", width=.75) +
+  geom_errorbar(aes(ymax=m_yld+se_yld, ymin=m_yld-se_yld), 
                 width=0.5, position=position_dodge(.9))+
-  ylab("Relative Feed Value")+
-  ggtitle("Relative feed value of Kernza forage measured in spring and fall")+
-  #xlim(c(1:6))+
-  scale_fill_manual(values=c("peachpuff3","lemonchiffon3"),
-                    name="Entry")+
+  ylab(expression("Relative Feed Value " ~ (Tons ~ acre^{-1})))+
+  geom_vline(xintercept=c(1.5, 4.5, 7.5))+
+  #geom_text(label="Year 1", x=1, y=2.6)+
+  #geom_text(label="Year 2", x=3, y=2.6)+
+  #geom_text(label="Year 3", x=6, y=2.6)+
+  #geom_text(label="Year 4", x=8.5, y=2.6)+
+  ggtitle("Kernza forage yield measured in spring, summer, and fall")+
   theme(panel.grid.major=element_blank(),
         panel.grid.minor=element_blank(),
         panel.background=element_rect(color="black", fill="white"),
@@ -65,13 +89,13 @@ ggplot(subset(tbl2, Biomass=="Forage"), aes(y=RFV.pregraze, x=Season2, fill=Trt)
         axis.line = element_line(color='black'),
         #legend.title.align = "top",
         legend.title=element_blank(),
-        legend.position = c(.6, .8),
+        legend.position = c(.9, .8),
         #axis.title.x=element_text(size=12, color='black'),
         axis.title.x=element_blank(),
-        #axis.text.x=element_blank(),
+        axis.text.x=element_text(size=12, color='black'),
         axis.title.y = element_text(size=12, color='black'),
         axis.text.y=element_text(size=12, color='black'))
-ggsave("RFV.png", width=9, height=5, units="in", path="/Volumes/GoogleDrive/My Drive/Intermediate_wheatgrass_research/Grazing_Experiments/On-Farm Trials/2020-KrausReport (Anderson and Honken)/MDA_Grazing_Analysis/")
+ggsave("ForageYld.png", width=9, height=5, units="in", path="figures/")
 mod2<-lme(RFV.pregraze~Season2*Trt, random=~1|Paddock, data=subset(dat, Biomass=="Forage"&Farm=="Anderson"), na.action=na.omit)
 anova(mod2)
 cld(emmeans(mod2, ~Trt|Season2)) #significantly different at Anderson in Spring 2021. Grazing increased RFV
