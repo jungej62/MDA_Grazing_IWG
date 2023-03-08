@@ -17,7 +17,7 @@ dat$season3<-str_split_i(dat$season, " ", 1)
 dat$season3<-factor(dat$season3, levels=c("Spring", "Summer", "Fall"))
 #Forage yield ----
 #The old way
-tbl1<-summarySE(dat, "pregraze_tons_acre", c("season2", "biomass", "trt", "farm"), na.rm=T)
+#tbl1<-summarySE(dat, "pregraze_tons_acre", c("season2", "biomass", "trt", "farm"), na.rm=T)
 #The new way
 tbl1<- dat %>% 
   filter(!is.na(pregraze_tons_acre), farm=="Anderson", trt=="Grazed", biomass!="Grain") %>% 
@@ -67,7 +67,7 @@ cld(emmeans(mod1, ~trt|Season2)) #significantly different at Anderson in Spring 
 
 #Forage quality ----
 tbl2<- dat %>% 
-  filter(!is.na(pregraze_tons_acre), farm=="Anderson", trt=="Grazed", biomass!="Grain", fstand_age!="4") %>% 
+  filter(!is.na(pregraze_tons_acre), farm=="Anderson", trt=="Grazed", biomass!="Grain") %>% 
   group_by(fstand_age, season3, biomass, trt, farm) %>% 
   summarise(m_yld = mean(RFV, na.rm=T), 
             sd_yld = sd(RFV, na.rm=T), 
