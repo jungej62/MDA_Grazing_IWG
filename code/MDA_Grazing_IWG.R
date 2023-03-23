@@ -2,7 +2,7 @@
 library(nlme);library(multcomp);library(emmeans);library(multcompView)
 library(ggplot2); library(lattice); library(reshape2)
 library(Rmisc); library(tidyverse); 
-library(stringr)
+library(stringr); library(gtsummary)
 #Read data ----
 dat<-read.csv("data/MDA_Grazing_IWG.csv")
 str(dat)
@@ -26,6 +26,14 @@ tbl1<- dat %>%
             sd_yld = sd(pregraze_tons_acre, na.rm=T), 
             n_yld = n()) %>% 
   mutate(se_yld=sd_yld/sqrt(n_yld))
+#Exploring use of gtsummary functions
+dat %>% 
+  select(fstand_age, season3, biomass, trt, farm, pregraze_tons_acre) %>% 
+  tbl_summary(
+    by=trt,
+    include=pregraze_tons_acre
+  )
+  
 
 ggplot(tbl1, aes(y=m_yld, x=interaction(season3,fstand_age), fill=season3))+
   #facet_grid(~fstand_age)+
@@ -64,6 +72,12 @@ anova(mod1)
 library(emmeans)
 library(multcompView)
 cld(emmeans(mod1, ~trt|Season2)) #significantly different at Anderson in Spring 2021, grazing reduced spring forage
+dat %>% 
+  filter(Biomass=="Forage"&
+           Farm=="Anderson") %>% 
+  lme(Pregraze_tons_acre~Season2*Trt, random=~1|Paddock, na.action=na.omit) %>% 
+  
+
 
 #Forage quality ----
 tbl2<- dat %>% 
