@@ -312,3 +312,29 @@ library(Rmisc)
 stab1<-summarySE(sdat, "value", c("parameter", "time"))
 write_clip(stab1)
 
+#Economics
+edat<-read.csv("data/MDA_Grazing_Econ.csv")
+edat$category<-factor(edat$category, levels=c("Expenses", "Revenue", "Net Return to Enterprise"))
+ggplot(edat, aes(y=value, x=factor(year), fill=category))+
+  geom_bar(position=position_dodge(.9), stat="identity") +
+  scale_y_continuous(labels = scales::dollar_format())+
+  scale_fill_manual(values=c("#F8766D", "#7CAE00", "#00BFC4"))+
+  xlab("Stand age in years since establishment")+
+  ylab("Financials per acre")+
+  ggtitle("Economics of Dual-Use Kernza")+
+  theme(panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.background=element_rect(color="black", fill="white"),
+        panel.border=element_blank(),
+        axis.line = element_line(color='black'),
+        #legend.title.align = "top",
+        legend.title=element_blank(),
+        legend.position = c(.78, .85),
+        legend.key.size =unit(0.5, "cm"),
+        legend.text = element_text(size=12),
+        axis.title.x=element_text(size=12, color='black'),
+        #axis.title.x=element_blank(),
+        axis.text.x=element_text(size=12, color='black'),
+        axis.title.y = element_text(size=12, color='black'),
+        axis.text.y=element_text(size=12, color='black'))
+ggsave("Economics.png", width=6, height=4, units="in", path="figures/")
